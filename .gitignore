@@ -1,0 +1,6 @@
+.vs
+x64
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
