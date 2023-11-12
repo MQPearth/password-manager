@@ -6,4 +6,4 @@
 *.sdf
 *.opensdf
 */build
-*/cmake-build-debug
+*/cmake-build*
