@@ -1,6 +1,9 @@
+*/.idea
 */.vs
 */x64
 *.vcxproj.user
 *.suo
 *.sdf
 *.opensdf
+*/build
+*/cmake-build-debug
