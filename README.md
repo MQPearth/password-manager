@@ -14,4 +14,3 @@
 1. Windows QT
 
 2. Android
-ds
