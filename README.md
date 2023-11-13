@@ -8,7 +8,6 @@
 
 1. Drogon
 2. MySQL
-3. Redis
 
 ### 客户端
 
