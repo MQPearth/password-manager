@@ -46,6 +46,7 @@ class Password
     {
         static const std::string _id;
         static const std::string _enc_data;
+        static const std::string _update_time;
     };
 
     const static int primaryKeyNumber;
@@ -116,8 +117,16 @@ class Password
     void setEncData(std::string &&pEncData) noexcept;
     void setEncDataToNull() noexcept;
 
+    /**  For column update_time  */
+    ///Get the value of the column update_time, returns the default value if the column is null
+    const ::trantor::Date &getValueOfUpdateTime() const noexcept;
+    ///Return a shared_ptr object pointing to the column const value, or an empty shared_ptr object if the column is null
+    const std::shared_ptr<::trantor::Date> &getUpdateTime() const noexcept;
+    ///Set the value of the column update_time
+    void setUpdateTime(const ::trantor::Date &pUpdateTime) noexcept;
 
-    static size_t getColumnNumber() noexcept {  return 2;  }
+
+    static size_t getColumnNumber() noexcept {  return 3;  }
     static const std::string &getColumnName(size_t index) noexcept(false);
 
     Json::Value toJson() const;
@@ -140,6 +149,7 @@ class Password
     void updateId(const uint64_t id);
     std::shared_ptr<std::string> id_;
     std::shared_ptr<std::string> encData_;
+    std::shared_ptr<::trantor::Date> updateTime_;
     struct MetaData
     {
         const std::string colName_;
@@ -151,7 +161,7 @@ class Password
         const bool notNull_;
     };
     static const std::vector<MetaData> metaData_;
-    bool dirtyFlag_[2]={ false };
+    bool dirtyFlag_[3]={ false };
   public:
     static const std::string &sqlForFindingByPrimaryKey()
     {
@@ -179,6 +189,11 @@ class Password
             sql += "enc_data,";
             ++parametersCount;
         }
+        if(dirtyFlag_[2])
+        {
+            sql += "update_time,";
+            ++parametersCount;
+        }
         if(parametersCount > 0)
         {
             sql[sql.length()-1]=')';
@@ -193,6 +208,11 @@ class Password
 
         }
         if(dirtyFlag_[1])
+        {
+            sql.append("?,");
+
+        }
+        if(dirtyFlag_[2])
         {
             sql.append("?,");
 

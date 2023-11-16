@@ -43,7 +43,10 @@ void PasswordController::get(const HttpRequestPtr &req, std::function<void(const
 
         auto ret = Result::json();
         const auto &enc_data = enc_data_row.getEncData();
-        ret["data"] = *enc_data;
+        Json::Value data;
+        data["enc_data"] = *enc_data;
+        data["update_time"] = enc_data_row.getUpdateTime()->toCustomedFormattedStringLocal("%Y-%m-%d %H:%M:%S");
+        ret["data"] = data;
         callback(HttpResponse::newHttpJsonResponse(ret));
     } catch (orm::UnexpectedRows &e) {
         callback(Result::error("账户名或密码错误"));
@@ -95,6 +98,7 @@ void PasswordController::update(const HttpRequestPtr &req, std::function<void(co
         auto enc_data_row = password_mapper.findOne(orm::Criteria(Password::Cols::_id,
                                                                   orm::CompareOperator::EQ, *row.getId()));
         enc_data_row.setEncData(enc_data.asString());
+        enc_data_row.setUpdateTime(trantor::Date::now());
 
         password_mapper.update(enc_data_row);
 

@@ -15,13 +15,15 @@ using namespace drogon_model::password;
 
 const std::string Password::Cols::_id = "id";
 const std::string Password::Cols::_enc_data = "enc_data";
+const std::string Password::Cols::_update_time = "update_time";
 const std::string Password::primaryKeyName = "id";
 const bool Password::hasPrimaryKey = true;
 const std::string Password::tableName = "password";
 
 const std::vector<typename Password::MetaData> Password::metaData_={
 {"id","std::string","varchar(50)",50,0,1,1},
-{"enc_data","std::string","longtext",0,0,0,0}
+{"enc_data","std::string","longtext",0,0,0,0},
+{"update_time","::trantor::Date","datetime",0,0,0,1}
 };
 const std::string &Password::getColumnName(size_t index) noexcept(false)
 {
@@ -40,11 +42,33 @@ Password::Password(const Row &r, const ssize_t indexOffset) noexcept
         {
             encData_=std::make_shared<std::string>(r["enc_data"].as<std::string>());
         }
+        if(!r["update_time"].isNull())
+        {
+            auto timeStr = r["update_time"].as<std::string>();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
+        }
     }
     else
     {
         size_t offset = (size_t)indexOffset;
-        if(offset + 2 > r.size())
+        if(offset + 3 > r.size())
         {
             LOG_FATAL << "Invalid SQL result for this model";
             return;
@@ -60,13 +84,36 @@ Password::Password(const Row &r, const ssize_t indexOffset) noexcept
         {
             encData_=std::make_shared<std::string>(r[index].as<std::string>());
         }
+        index = offset + 2;
+        if(!r[index].isNull())
+        {
+            auto timeStr = r[index].as<std::string>();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
+        }
     }
 
 }
 
 Password::Password(const Json::Value &pJson, const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 2)
+    if(pMasqueradingVector.size() != 3)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -85,6 +132,32 @@ Password::Password(const Json::Value &pJson, const std::vector<std::string> &pMa
         if(!pJson[pMasqueradingVector[1]].isNull())
         {
             encData_=std::make_shared<std::string>(pJson[pMasqueradingVector[1]].asString());
+        }
+    }
+    if(!pMasqueradingVector[2].empty() && pJson.isMember(pMasqueradingVector[2]))
+    {
+        dirtyFlag_[2] = true;
+        if(!pJson[pMasqueradingVector[2]].isNull())
+        {
+            auto timeStr = pJson[pMasqueradingVector[2]].asString();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
         }
     }
 }
@@ -107,12 +180,38 @@ Password::Password(const Json::Value &pJson) noexcept(false)
             encData_=std::make_shared<std::string>(pJson["enc_data"].asString());
         }
     }
+    if(pJson.isMember("update_time"))
+    {
+        dirtyFlag_[2]=true;
+        if(!pJson["update_time"].isNull())
+        {
+            auto timeStr = pJson["update_time"].asString();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
+        }
+    }
 }
 
 void Password::updateByMasqueradedJson(const Json::Value &pJson,
                                             const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 2)
+    if(pMasqueradingVector.size() != 3)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -132,6 +231,32 @@ void Password::updateByMasqueradedJson(const Json::Value &pJson,
             encData_=std::make_shared<std::string>(pJson[pMasqueradingVector[1]].asString());
         }
     }
+    if(!pMasqueradingVector[2].empty() && pJson.isMember(pMasqueradingVector[2]))
+    {
+        dirtyFlag_[2] = true;
+        if(!pJson[pMasqueradingVector[2]].isNull())
+        {
+            auto timeStr = pJson[pMasqueradingVector[2]].asString();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
+        }
+    }
 }
 
 void Password::updateByJson(const Json::Value &pJson) noexcept(false)
@@ -149,6 +274,32 @@ void Password::updateByJson(const Json::Value &pJson) noexcept(false)
         if(!pJson["enc_data"].isNull())
         {
             encData_=std::make_shared<std::string>(pJson["enc_data"].asString());
+        }
+    }
+    if(pJson.isMember("update_time"))
+    {
+        dirtyFlag_[2] = true;
+        if(!pJson["update_time"].isNull())
+        {
+            auto timeStr = pJson["update_time"].asString();
+            struct tm stm;
+            memset(&stm,0,sizeof(stm));
+            auto p = strptime(timeStr.c_str(),"%Y-%m-%d %H:%M:%S",&stm);
+            time_t t = mktime(&stm);
+            size_t decimalNum = 0;
+            if(p)
+            {
+                if(*p=='.')
+                {
+                    std::string decimals(p+1,&timeStr[timeStr.length()]);
+                    while(decimals.length()<6)
+                    {
+                        decimals += "0";
+                    }
+                    decimalNum = (size_t)atol(decimals.c_str());
+                }
+                updateTime_=std::make_shared<::trantor::Date>(t*1000000+decimalNum);
+            }
         }
     }
 }
@@ -207,6 +358,23 @@ void Password::setEncDataToNull() noexcept
     dirtyFlag_[1] = true;
 }
 
+const ::trantor::Date &Password::getValueOfUpdateTime() const noexcept
+{
+    const static ::trantor::Date defaultValue = ::trantor::Date();
+    if(updateTime_)
+        return *updateTime_;
+    return defaultValue;
+}
+const std::shared_ptr<::trantor::Date> &Password::getUpdateTime() const noexcept
+{
+    return updateTime_;
+}
+void Password::setUpdateTime(const ::trantor::Date &pUpdateTime) noexcept
+{
+    updateTime_ = std::make_shared<::trantor::Date>(pUpdateTime);
+    dirtyFlag_[2] = true;
+}
+
 void Password::updateId(const uint64_t id)
 {
 }
@@ -215,7 +383,8 @@ const std::vector<std::string> &Password::insertColumns() noexcept
 {
     static const std::vector<std::string> inCols={
         "id",
-        "enc_data"
+        "enc_data",
+        "update_time"
     };
     return inCols;
 }
@@ -244,6 +413,17 @@ void Password::outputArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
+    if(dirtyFlag_[2])
+    {
+        if(getUpdateTime())
+        {
+            binder << getValueOfUpdateTime();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
 }
 
 const std::vector<std::string> Password::updateColumns() const
@@ -256,6 +436,10 @@ const std::vector<std::string> Password::updateColumns() const
     if(dirtyFlag_[1])
     {
         ret.push_back(getColumnName(1));
+    }
+    if(dirtyFlag_[2])
+    {
+        ret.push_back(getColumnName(2));
     }
     return ret;
 }
@@ -284,6 +468,17 @@ void Password::updateArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
+    if(dirtyFlag_[2])
+    {
+        if(getUpdateTime())
+        {
+            binder << getValueOfUpdateTime();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
 }
 Json::Value Password::toJson() const
 {
@@ -304,6 +499,14 @@ Json::Value Password::toJson() const
     {
         ret["enc_data"]=Json::Value();
     }
+    if(getUpdateTime())
+    {
+        ret["update_time"]=getUpdateTime()->toDbStringLocal();
+    }
+    else
+    {
+        ret["update_time"]=Json::Value();
+    }
     return ret;
 }
 
@@ -311,7 +514,7 @@ Json::Value Password::toMasqueradedJson(
     const std::vector<std::string> &pMasqueradingVector) const
 {
     Json::Value ret;
-    if(pMasqueradingVector.size() == 2)
+    if(pMasqueradingVector.size() == 3)
     {
         if(!pMasqueradingVector[0].empty())
         {
@@ -335,6 +538,17 @@ Json::Value Password::toMasqueradedJson(
                 ret[pMasqueradingVector[1]]=Json::Value();
             }
         }
+        if(!pMasqueradingVector[2].empty())
+        {
+            if(getUpdateTime())
+            {
+                ret[pMasqueradingVector[2]]=getUpdateTime()->toDbStringLocal();
+            }
+            else
+            {
+                ret[pMasqueradingVector[2]]=Json::Value();
+            }
+        }
         return ret;
     }
     LOG_ERROR << "Masquerade failed";
@@ -353,6 +567,14 @@ Json::Value Password::toMasqueradedJson(
     else
     {
         ret["enc_data"]=Json::Value();
+    }
+    if(getUpdateTime())
+    {
+        ret["update_time"]=getUpdateTime()->toDbStringLocal();
+    }
+    else
+    {
+        ret["update_time"]=Json::Value();
     }
     return ret;
 }
@@ -374,13 +596,23 @@ bool Password::validateJsonForCreation(const Json::Value &pJson, std::string &er
         if(!validJsonOfField(1, "enc_data", pJson["enc_data"], err, true))
             return false;
     }
+    if(pJson.isMember("update_time"))
+    {
+        if(!validJsonOfField(2, "update_time", pJson["update_time"], err, true))
+            return false;
+    }
+    else
+    {
+        err="The update_time column cannot be null";
+        return false;
+    }
     return true;
 }
 bool Password::validateMasqueradedJsonForCreation(const Json::Value &pJson,
                                                   const std::vector<std::string> &pMasqueradingVector,
                                                   std::string &err)
 {
-    if(pMasqueradingVector.size() != 2)
+    if(pMasqueradingVector.size() != 3)
     {
         err = "Bad masquerading vector";
         return false;
@@ -407,6 +639,19 @@ bool Password::validateMasqueradedJsonForCreation(const Json::Value &pJson,
                   return false;
           }
       }
+      if(!pMasqueradingVector[2].empty())
+      {
+          if(pJson.isMember(pMasqueradingVector[2]))
+          {
+              if(!validJsonOfField(2, pMasqueradingVector[2], pJson[pMasqueradingVector[2]], err, true))
+                  return false;
+          }
+        else
+        {
+            err="The " + pMasqueradingVector[2] + " column cannot be null";
+            return false;
+        }
+      }
     }
     catch(const Json::LogicError &e)
     {
@@ -432,13 +677,18 @@ bool Password::validateJsonForUpdate(const Json::Value &pJson, std::string &err)
         if(!validJsonOfField(1, "enc_data", pJson["enc_data"], err, false))
             return false;
     }
+    if(pJson.isMember("update_time"))
+    {
+        if(!validJsonOfField(2, "update_time", pJson["update_time"], err, false))
+            return false;
+    }
     return true;
 }
 bool Password::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
                                                 const std::vector<std::string> &pMasqueradingVector,
                                                 std::string &err)
 {
-    if(pMasqueradingVector.size() != 2)
+    if(pMasqueradingVector.size() != 3)
     {
         err = "Bad masquerading vector";
         return false;
@@ -457,6 +707,11 @@ bool Password::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
       if(!pMasqueradingVector[1].empty() && pJson.isMember(pMasqueradingVector[1]))
       {
           if(!validJsonOfField(1, pMasqueradingVector[1], pJson[pMasqueradingVector[1]], err, false))
+              return false;
+      }
+      if(!pMasqueradingVector[2].empty() && pJson.isMember(pMasqueradingVector[2]))
+      {
+          if(!validJsonOfField(2, pMasqueradingVector[2], pJson[pMasqueradingVector[2]], err, false))
               return false;
       }
     }
@@ -500,6 +755,18 @@ bool Password::validJsonOfField(size_t index,
             if(pJson.isNull())
             {
                 return true;
+            }
+            if(!pJson.isString())
+            {
+                err="Type error in the "+fieldName+" field";
+                return false;
+            }
+            break;
+        case 2:
+            if(pJson.isNull())
+            {
+                err="The " + fieldName + " column cannot be null";
+                return false;
             }
             if(!pJson.isString())
             {
