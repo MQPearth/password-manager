@@ -19,17 +19,6 @@
             "number_of_connections": 2
         }
     ],
-    "redis_clients": [
-        {
-            "host": "192.168.93.136",
-            "port": 6379,
-            "passwd": "",
-            "db": 0,
-            "is_fast": false,
-            "number_of_connections": 3,
-            "timeout": 60.0
-        }
-    ],
     "app": {
         "number_of_threads": 2,
         "enable_session": false,
