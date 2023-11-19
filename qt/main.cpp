@@ -7,8 +7,6 @@
 #include "encrypt_util.h"
 
 
-
-
 #define BIN_FILE "enc_data.bin";
 #define SERVER_FILE "server.bin";
 
@@ -28,11 +26,14 @@ QString get_password(bool exist, passwordmanager *w) {
 
     QString title;
     QString tips;
+    QLineEdit::EchoMode echoMode;
 
     if (exist) {
+        echoMode = QLineEdit::Password;
         title = "请输入密码";
     }
     else {
+        echoMode = QLineEdit::Normal;
         title = "请设置密码";
         tips = "初次使用请设置密码";
     }
@@ -42,7 +43,7 @@ QString get_password(bool exist, passwordmanager *w) {
     while (true)
     {
         bool is_ok;
-        text = QInputDialog::getText(w, title, tips, QLineEdit::Password, "", &is_ok, Qt::WindowFlags());
+        text = QInputDialog::getText(w, title, tips, echoMode, "1234", &is_ok, Qt::WindowFlags());
 
         if (!is_ok) {
             qDebug() << "用户取消了输入";
@@ -54,6 +55,10 @@ QString get_password(bool exist, passwordmanager *w) {
             continue;
         }
         else {
+            if (text.length() < 4) {
+                tips = "<p style='color: red'>密码不能小于四位</p>";
+                continue;
+            }
             break;
         }
     }
