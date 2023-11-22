@@ -1,6 +1,7 @@
 ﻿#include "passwordmanager.h"
 
 #include <QLineEdit>
+#include <QDebug>
 #include <QDialog>
 #include <QFormLayout>
 #include <QDialog>
@@ -17,18 +18,47 @@ passwordmanager::passwordmanager(QWidget* parent)
 	ui.treeWidget->setHeaderLabels(QStringList() << "分类" << "URL" << "登录名" << "密码" << "备注");
 }
 
+void passwordmanager::init_data(QString& txt) {
+	this->root["verify"] = true;
+	this->root["data"] = Json::Value(Json::arrayValue);
+}
+
+bool compareEntries(const Json::Value& l, const Json::Value& r) {
+	auto category_l = l["category"].asString();
+	auto category_r = r["category"].asString();
+	if (category_l != category_r)
+		return category_l < category_r;
+
+	auto url_l = l["url"].asString();
+	auto url_r = r["url"].asString();
+	if (url_l != url_r)
+		return url_l < url_r;
+
+	auto login_name_l = l["login_name"].asString();
+	auto login_name_r = r["login_name"].asString();
+	if (login_name_l != login_name_r)
+		return login_name_l < login_name_r;
+
+	return l["password"].asString() < r["password"].asString();
+}
 
 void passwordmanager::refresh_tree_item() {
 
-	Json::Value data = root["data"];
-
-	
+	Json::Value data = this->root["data"];
 
 
+	std::vector<Json::Value> json_vector;
+
+	for (const auto& entry : data) {
+		json_vector.push_back(entry);
+	}
+
+	std::sort(json_vector.begin(), json_vector.end(), compareEntries);
 
 
-
-
+	for (const auto& entry : json_vector) {
+		qDebug() << entry.toStyledString().c_str();
+	}
 
 
 	/*
@@ -79,6 +109,7 @@ void passwordmanager::refresh_tree_item() {
   }
  */
 void passwordmanager::add_json(QString& category, QString& url, QString& login_name, QString& password, QString& note) {
+
 	Json::Value ele;
 
 	ele["category"] = category.toStdString();
@@ -156,7 +187,7 @@ void passwordmanager::add_entry()
 			passwordEdit->setPlaceholderText("密码是必填项");
 			continue;
 		}
-		
+
 		this->add_json(category, url, username, password, note);
 		break;
 	}

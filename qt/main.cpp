@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
     w.show();
 
     bool exist = check_bin_file(argv[0]);
+    auto txt = QString::fromStdString("");
+    w.init_data(txt);
 
     QString password = get_password(exist, &w);
     qDebug() << password;
