@@ -11,11 +11,30 @@
 passwordmanager::passwordmanager(QWidget* parent)
 	: QMainWindow(parent)
 {
+
 	ui.setupUi(this);
 
 	connect(ui.actionAdd, &QAction::triggered, this, &passwordmanager::add_entry);
 
 	ui.treeWidget->setHeaderLabels(QStringList() << "分类" << "URL" << "登录名" << "密码" << "备注");
+
+	QHeaderView* header = ui.treeWidget->header();
+
+	header->setSectionResizeMode(0, QHeaderView::Fixed);
+	header->resizeSection(0, 80);
+
+	header->setSectionResizeMode(1, QHeaderView::Fixed);
+	header->resizeSection(1, 120);
+
+	header->setSectionResizeMode(2, QHeaderView::Fixed);
+	header->resizeSection(2, 120);
+
+	header->setSectionResizeMode(3, QHeaderView::Fixed);
+	header->resizeSection(3, 140);
+
+	header->setSectionResizeMode(4, QHeaderView::Fixed);
+	header->resizeSection(4, 200);
+
 }
 
 void passwordmanager::init_data(QString& txt) {
@@ -48,6 +67,19 @@ bool compareEntries(const Json::Value& l, const Json::Value& r) {
 	return l["password"].asString() < r["password"].asString();
 }
 
+
+QTreeWidgetItem* get_parent(QTreeWidgetItem* item, int loop) {
+
+	QTreeWidgetItem* parent = nullptr;
+
+	while (loop <= 0)
+	{
+		parent = item->parent();
+		loop--;
+	}
+	return parent;
+}
+
 void passwordmanager::refresh_tree_item() {
 
 	Json::Value data = this->root["data"];
@@ -65,50 +97,51 @@ void passwordmanager::refresh_tree_item() {
 	Json::Value* last_json_ele = nullptr;
 	QTreeWidgetItem* last_item_ele = nullptr;
 
+	int deep = 0;
 	for (auto& entry : json_vector) {
 		qDebug() << entry.toStyledString().c_str();
 
-		int step = 0;
 		qDebug() << last_json_ele;
 		if (last_json_ele && GET_CATEGORY(entry) == GET_CATEGORY((*last_json_ele))) {
-			step++;
+
+			deep++;
 			if (last_json_ele && GET_URL(entry) == GET_URL((*last_json_ele))) {
-				step++;
+
 				if (last_json_ele && GET_LOGIN_NAME(entry) == GET_LOGIN_NAME((*last_json_ele))) {
-					step++;
-					QTreeWidgetItem* password = new QTreeWidgetItem(*last_item_ele);
-					password->setText(step++, GET_PASSWORD_Q(entry));
-					password->setText(step++, GET_NOTE_Q(entry));
-					last_item_ele->addChild(password);
+
+					QTreeWidgetItem* password = new QTreeWidgetItem(last_item_ele);
+					password->setText(3, GET_PASSWORD_Q(entry));
+					password->setText(4, GET_NOTE_Q(entry));
+
 					last_item_ele = password;
 				}
 				else {
-					QTreeWidgetItem* login_name = new QTreeWidgetItem(*last_item_ele);
-					login_name->setText(step++, GET_LOGIN_NAME_Q(entry));
-					login_name->setText(step++, GET_PASSWORD_Q(entry));
-					login_name->setText(step++, GET_NOTE_Q(entry));
-					last_item_ele->addChild(login_name);
+					QTreeWidgetItem* login_name = new QTreeWidgetItem(last_item_ele);
+					login_name->setText(2, GET_LOGIN_NAME_Q(entry));
+					login_name->setText(3, GET_PASSWORD_Q(entry));
+					login_name->setText(4, GET_NOTE_Q(entry));
+
 					last_item_ele = login_name;
 				}
 			}
 			else {
-				QTreeWidgetItem* url = new QTreeWidgetItem(*last_item_ele);
-				url->setText(step++, GET_URL_Q(entry));
-				url->setText(step++, GET_LOGIN_NAME_Q(entry));
-				url->setText(step++, GET_PASSWORD_Q(entry));
-				url->setText(step++, GET_NOTE_Q(entry));
-				last_item_ele->addChild(url);
+				QTreeWidgetItem* url = new QTreeWidgetItem(last_item_ele);
+				url->setText(1, GET_URL_Q(entry));
+				url->setText(2, GET_LOGIN_NAME_Q(entry));
+				url->setText(3, GET_PASSWORD_Q(entry));
+				url->setText(4, GET_NOTE_Q(entry));
+
 				last_item_ele = url;
 			}
 		}
 		else {
 			QTreeWidgetItem* category = new QTreeWidgetItem(ui.treeWidget);
-			category->setText(step++, GET_CATEGORY_Q(entry));
-			category->setText(step++, GET_URL_Q(entry));
-			category->setText(step++, GET_LOGIN_NAME_Q(entry));
-			category->setText(step++, GET_PASSWORD_Q(entry));
-			category->setText(step++, GET_NOTE_Q(entry));
-			ui.treeWidget->addTopLevelItem(category);
+			category->setText(0, GET_CATEGORY_Q(entry));
+			category->setText(1, GET_URL_Q(entry));
+			category->setText(2, GET_LOGIN_NAME_Q(entry));
+			category->setText(3, GET_PASSWORD_Q(entry));
+			category->setText(4, GET_NOTE_Q(entry));
+
 			last_item_ele = category;
 		}
 		last_json_ele = &entry;
