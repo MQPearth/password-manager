@@ -76,19 +76,36 @@ int main(int argc, char *argv[])
     w.show();
 
     bool exist = check_bin_file(argv[0]);
-    auto txt = QString::fromStdString(R"(
-        {
-            "verify": true,
-            "data": []
-        }
-    )");
-    w.init_data(txt);
+    
 
     QString password = get_password(exist, &w);
     qDebug() << password;
     if (password.isEmpty()) {
         return -1;
     }
+
+    auto txt = QString::fromStdString(R"(
+        {
+            "verify": true,
+            "data": [
+                {
+                    "category": "123",
+                    "url": "123",       
+                    "login_name": "login_name",       
+                    "password": "password",       
+                    "note": "",       
+                },
+                {
+                    "category": "123",
+                    "url": "1",       
+                    "login_name": "login_name",       
+                    "password": "password",       
+                    "note": "",       
+                }
+            ]
+        }
+    )");
+    w.init_data(txt);
 
     QString enc = encrypt_util::encrypt("test", "test");
     qDebug() << enc;

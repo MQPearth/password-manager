@@ -25,6 +25,8 @@ void passwordmanager::init_data(QString& txt) {
 	std::istringstream jsonStream(txt.toStdString());
 
 	Json::parseFromStream(reader, jsonStream, &this->root, nullptr);
+
+	this->refresh_tree_item();
 }
 
 bool compareEntries(const Json::Value& l, const Json::Value& r) {
@@ -110,10 +112,6 @@ void passwordmanager::refresh_tree_item() {
 			last_item_ele = category;
 		}
 		last_json_ele = &entry;
-	}
-
-	if (!last_json_ele) {
-		delete last_json_ele;
 	}
 
 
