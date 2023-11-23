@@ -4,6 +4,26 @@
 #include <jsoncpp/json.h>
 
 
+#define CATEGORY "category"
+#define URL "url"
+#define LOGIN_NAME "login_name"
+#define PASSWORD "password"
+#define NOTE "note"
+
+#define GET_CATEGORY(entry) entry[CATEGORY].asString()
+#define GET_URL(entry) entry[URL].asString()
+#define GET_LOGIN_NAME(entry) entry[LOGIN_NAME].asString()
+#define GET_PASSWORD(entry) entry[PASSWORD].asString()
+#define GET_NOTE(entry) entry[NOTE].asString()
+
+
+#define GET_CATEGORY_Q(entry) QString::fromStdString(entry[CATEGORY].asString())
+#define GET_URL_Q(entry) QString::fromStdString(entry[URL].asString())
+#define GET_LOGIN_NAME_Q(entry) QString::fromStdString(entry[LOGIN_NAME].asString())
+#define GET_PASSWORD_Q(entry) QString::fromStdString(entry[PASSWORD].asString())
+#define GET_NOTE_Q(entry) QString::fromStdString(entry[NOTE].asString())
+
+
 class passwordmanager : public QMainWindow
 {
     Q_OBJECT

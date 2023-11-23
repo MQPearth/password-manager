@@ -19,8 +19,12 @@ passwordmanager::passwordmanager(QWidget* parent)
 }
 
 void passwordmanager::init_data(QString& txt) {
-	this->root["verify"] = true;
-	this->root["data"] = Json::Value(Json::arrayValue);
+
+	Json::CharReaderBuilder reader;
+
+	std::istringstream jsonStream(txt.toStdString());
+
+	Json::parseFromStream(reader, jsonStream, &this->root, nullptr);
 }
 
 bool compareEntries(const Json::Value& l, const Json::Value& r) {
@@ -46,7 +50,6 @@ void passwordmanager::refresh_tree_item() {
 
 	Json::Value data = this->root["data"];
 
-
 	std::vector<Json::Value> json_vector;
 
 	for (const auto& entry : data) {
@@ -56,8 +59,61 @@ void passwordmanager::refresh_tree_item() {
 	std::sort(json_vector.begin(), json_vector.end(), compareEntries);
 
 
-	for (const auto& entry : json_vector) {
+	ui.treeWidget->clear();
+	Json::Value* last_json_ele = nullptr;
+	QTreeWidgetItem* last_item_ele = nullptr;
+
+	for (auto& entry : json_vector) {
 		qDebug() << entry.toStyledString().c_str();
+
+		int step = 0;
+		qDebug() << last_json_ele;
+		if (last_json_ele && GET_CATEGORY(entry) == GET_CATEGORY((*last_json_ele))) {
+			step++;
+			if (last_json_ele && GET_URL(entry) == GET_URL((*last_json_ele))) {
+				step++;
+				if (last_json_ele && GET_LOGIN_NAME(entry) == GET_LOGIN_NAME((*last_json_ele))) {
+					step++;
+					QTreeWidgetItem* password = new QTreeWidgetItem(*last_item_ele);
+					password->setText(step++, GET_PASSWORD_Q(entry));
+					password->setText(step++, GET_NOTE_Q(entry));
+					last_item_ele->addChild(password);
+					last_item_ele = password;
+				}
+				else {
+					QTreeWidgetItem* login_name = new QTreeWidgetItem(*last_item_ele);
+					login_name->setText(step++, GET_LOGIN_NAME_Q(entry));
+					login_name->setText(step++, GET_PASSWORD_Q(entry));
+					login_name->setText(step++, GET_NOTE_Q(entry));
+					last_item_ele->addChild(login_name);
+					last_item_ele = login_name;
+				}
+			}
+			else {
+				QTreeWidgetItem* url = new QTreeWidgetItem(*last_item_ele);
+				url->setText(step++, GET_URL_Q(entry));
+				url->setText(step++, GET_LOGIN_NAME_Q(entry));
+				url->setText(step++, GET_PASSWORD_Q(entry));
+				url->setText(step++, GET_NOTE_Q(entry));
+				last_item_ele->addChild(url);
+				last_item_ele = url;
+			}
+		}
+		else {
+			QTreeWidgetItem* category = new QTreeWidgetItem(ui.treeWidget);
+			category->setText(step++, GET_CATEGORY_Q(entry));
+			category->setText(step++, GET_URL_Q(entry));
+			category->setText(step++, GET_LOGIN_NAME_Q(entry));
+			category->setText(step++, GET_PASSWORD_Q(entry));
+			category->setText(step++, GET_NOTE_Q(entry));
+			ui.treeWidget->addTopLevelItem(category);
+			last_item_ele = category;
+		}
+		last_json_ele = &entry;
+	}
+
+	if (!last_json_ele) {
+		delete last_json_ele;
 	}
 
 
