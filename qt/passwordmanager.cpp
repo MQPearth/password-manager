@@ -11,48 +11,12 @@
 #include <QApplication>
 #include <QScreen>
 #include <QTreeWidget>
+#include <QMessageBox>
 
 #include <jsoncpp/json.h>
 
-void passwordmanager::deleteItem(QTreeWidgetItem* item) {
-	QTreeWidgetItem* parent = item->parent();
-	if (parent != nullptr) {
-		delete parent->takeChild(parent->indexOfChild(item));
-	}
-	else {
-		delete ui.treeWidget->takeTopLevelItem(ui.treeWidget->indexOfTopLevelItem(item));
-	}
-}
-
-void passwordmanager::editItem(QTreeWidgetItem* item) {
-	// 在这里实现编辑操作
-	// 可以弹出对话框等
-}
 
 
-void passwordmanager::showContextMenu(const QPoint& pos) {
-	QTreeWidgetItem* item = ui.treeWidget->itemAt(pos);
-
-	if (item != nullptr) {
-		QMenu* menu = new QMenu(this);
-
-		// 添加删除菜单项
-		QAction* deleteAction = new QAction("删除", this);
-		connect(deleteAction, &QAction::triggered, [this, item]() {
-			deleteItem(item);
-			});
-		menu->addAction(deleteAction);
-
-		// 添加修改菜单项
-		QAction* editAction = new QAction("修改", this);
-		connect(editAction, &QAction::triggered, [this, item]() {
-			editItem(item);
-			});
-		menu->addAction(editAction);
-
-		menu->exec(ui.treeWidget->mapToGlobal(pos));
-	}
-}
 
 passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nullptr), password(QString())
 {
@@ -63,26 +27,93 @@ passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nu
 	ui.treeWidget->setHeaderLabels(QStringList() << "分类" << "URL" << "登录名" << "密码" << "备注");
 
 	ui.treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(ui.treeWidget, &QTreeWidget::customContextMenuRequested, this, &passwordmanager::showContextMenu);
+	connect(ui.treeWidget, &QTreeWidget::customContextMenuRequested, this, &passwordmanager::show_context_menu);
+	connect(ui.treeWidget, &QTreeWidget::itemDoubleClicked, this, &passwordmanager::handle_item_double_clicked);
 
 
 	QHeaderView* header = ui.treeWidget->header();
 
-	header->setSectionResizeMode(0, QHeaderView::Fixed);
 	header->resizeSection(0, 80);
-
-	header->setSectionResizeMode(1, QHeaderView::Fixed);
 	header->resizeSection(1, 160);
-
-	header->setSectionResizeMode(2, QHeaderView::Fixed);
 	header->resizeSection(2, 120);
-
-	header->setSectionResizeMode(3, QHeaderView::Fixed);
 	header->resizeSection(3, 140);
-
-	header->setSectionResizeMode(4, QHeaderView::Fixed);
 	header->resizeSection(4, 170);
 }
+
+void passwordmanager::delete_item(QTreeWidgetItem* item) {
+
+	QMessageBox::StandardButton reply;
+	reply = QMessageBox::critical(this, "删除", "确定删除?",
+		QMessageBox::Yes | QMessageBox::No);
+	if (!(reply == QMessageBox::Yes)) {
+		return;
+	}
+
+	auto category = item->text(0);
+	auto url = item->text(1);
+	auto login_name = item->text(2);
+	auto password = item->text(3);
+	auto note = item->text(4);
+
+	QTreeWidgetItem* parent = item->parent();
+	if (parent) {
+		delete parent->takeChild(parent->indexOfChild(item));
+	}
+	else {
+		delete ui.treeWidget->takeTopLevelItem(ui.treeWidget->indexOfTopLevelItem(item));
+	}
+
+	auto data = this->root["data"];
+	for (Json::Value::ArrayIndex i = 0; i < data.size(); ++i) {
+
+		Json::Value& item = data[i];
+
+		qDebug() << item.toStyledString().c_str();
+
+		if (GET_CATEGORY(item) == category.toStdString() && GET_URL(item) == url.toStdString()
+			&& GET_LOGIN_NAME(item) == login_name.toStdString() && GET_PASSWORD(item) == password.toStdString()
+			&& GET_NOTE(item) == note.toStdString()) {
+			data.removeIndex(i, &item);
+			this->root["data"] = data;
+			this->write_to_file();
+			break;
+		}
+	}
+}
+
+void passwordmanager::edit_item(QTreeWidgetItem* item) {
+	auto category = item->text(0);
+	auto url = item->text(1);
+	auto login_name = item->text(2);
+	auto password = item->text(3);
+	auto note = item->text(4);
+	this->edit_entry(item, category, url, login_name, password, note);
+}
+
+
+void passwordmanager::show_context_menu(const QPoint& pos) {
+	QTreeWidgetItem* item = ui.treeWidget->itemAt(pos);
+
+	if (item != nullptr) {
+		QMenu* menu = new QMenu(this);
+
+		QAction* deleteAction = new QAction("删除", this);
+		connect(deleteAction, &QAction::triggered, [this, item]() {
+			delete_item(item);
+			});
+		menu->addAction(deleteAction);
+
+		QAction* editAction = new QAction("修改", this);
+		connect(editAction, &QAction::triggered, [this, item]() {
+			edit_item(item);
+			});
+		menu->addAction(editAction);
+
+		menu->exec(ui.treeWidget->mapToGlobal(pos));
+	}
+}
+
+
 
 int passwordmanager::init_data(QString& txt) {
 
@@ -192,6 +223,13 @@ void passwordmanager::refresh_tree_item() {
 
 }
 
+
+void passwordmanager::handle_item_double_clicked(QTreeWidgetItem* item)
+{
+	qDebug() << "category: " << item->text(0) << "url: " << item->text(1) << "login_name: " << item->text(2)
+		<< "password: " << item->text(3) << "note: " << item->text(4);
+}
+
 void passwordmanager::add_json(QString& category, QString& url, QString& login_name, QString& password, QString& note) {
 
 	Json::Value ele;
@@ -203,8 +241,9 @@ void passwordmanager::add_json(QString& category, QString& url, QString& login_n
 	ele["note"] = note.toStdString();
 
 	root["data"].append(ele);
-	
-	file_util::write(this->path, QString::fromUtf8(this->root.toStyledString().c_str()), this->password);
+
+	this->write_to_file();
+
 	this->refresh_tree_item();
 }
 
@@ -277,6 +316,122 @@ void passwordmanager::add_entry()
 		break;
 	}
 
+}
+
+
+void passwordmanager::edit_entry(QTreeWidgetItem* item, QString& category, QString& url, QString& login_name, 
+	QString& password, QString& note)
+{
+	// 创建对话框
+	QDialog dialog(this);
+	dialog.setWindowTitle("新增密码");
+	dialog.setMinimumWidth(400);
+
+	// 创建表单布局
+	QFormLayout formLayout(&dialog);
+
+	QLineEdit* categoryEdit = new QLineEdit(&dialog);
+	categoryEdit->setPlaceholderText("请填写分类");
+	categoryEdit->setText(category);
+
+	QLineEdit* urlEdit = new QLineEdit(&dialog);
+	urlEdit->setPlaceholderText("请填写url");
+	urlEdit->setText(url);
+
+	QLineEdit* usernameEdit = new QLineEdit(&dialog);
+	usernameEdit->setPlaceholderText("请填写用户名");
+	usernameEdit->setText(login_name);
+
+	QLineEdit* passwordEdit = new QLineEdit(&dialog);
+	passwordEdit->setPlaceholderText("请填写密码");
+	passwordEdit->setText(password);
+
+	QLineEdit* noteEdit = new QLineEdit(&dialog);
+	noteEdit->setPlaceholderText("请填写备注");
+	noteEdit->setText(note);
+	
+
+	formLayout.addRow("<p>分类: <span style='color: red'>*</span></p>", categoryEdit);
+	formLayout.addRow("<p>URL:  <span style='color: red'>*</span></p>", urlEdit);
+	formLayout.addRow("<p>登录名: <span style='color: red'>*</span></p>", usernameEdit);
+	formLayout.addRow("<p>密码: <span style='color: red'>*</span></p>", passwordEdit);
+	formLayout.addRow("备注:", noteEdit);
+
+
+	QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+		Qt::Horizontal, &dialog);
+	formLayout.addRow(&buttonBox);
+
+	connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+	while (1 && dialog.exec() == QDialog::Accepted) {
+
+		QString new_category = categoryEdit->text();
+		QString new_url = urlEdit->text();
+		QString new_username = usernameEdit->text();
+		QString new_password = passwordEdit->text();
+		QString new_note = noteEdit->text();
+		if (new_category.isEmpty()) {
+			categoryEdit->setPlaceholderText("分类是必填项");
+			continue;
+		}
+		if (new_url.isEmpty()) {
+			urlEdit->setPlaceholderText("url是必填项");
+			continue;
+		}
+		if (new_username.isEmpty()) {
+			usernameEdit->setPlaceholderText("用户名是必填项");
+			continue;
+		}
+		if (new_password.isEmpty()) {
+			passwordEdit->setPlaceholderText("密码是必填项");
+			continue;
+		}
+
+		this->edit_json(category, url, login_name, password, note, new_category, new_url, new_username, new_password, new_note);
+
+		item->setText(0, new_category);
+		item->setText(1, new_url);
+		item->setText(2, new_username);
+		item->setText(3, new_password);
+		item->setText(4, new_note);
+		break;
+	}
+
+}
+
+void passwordmanager::edit_json(QString& old_category, QString& old_url, QString& old_login_name, QString& old_password, QString& old_remark,
+	QString& new_category, QString& new_url, QString& new_login_name, QString& new_password, QString& new_remark) {
+
+	auto data = this->root["data"];
+	for (Json::Value::ArrayIndex i = 0; i < data.size(); ++i) {
+
+		Json::Value& item = data[i];
+
+		qDebug() << item.toStyledString().c_str();
+
+		if (GET_CATEGORY(item) == old_category.toStdString() && GET_URL(item) == old_url.toStdString()
+			&& GET_LOGIN_NAME(item) == old_login_name.toStdString() && GET_PASSWORD(item) == old_password.toStdString()
+			&& GET_NOTE(item) == old_remark.toStdString()) {
+
+			item[CATEGORY] = new_category.toStdString();
+			item[URL] = new_category.toStdString();
+			item[LOGIN_NAME] = new_category.toStdString();
+			item[PASSWORD] = new_category.toStdString();
+			item[NOTE] = new_category.toStdString();
+
+			this->root["data"] = data;
+
+			this->write_to_file();
+			break;
+		}
+	}
+
+}
+
+void passwordmanager::write_to_file() {
+	file_util::write(this->path, QString::fromUtf8(this->root.toStyledString().c_str()), this->password);
 }
 
 passwordmanager::~passwordmanager()

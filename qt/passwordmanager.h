@@ -26,30 +26,35 @@
 
 class passwordmanager : public QMainWindow
 {
-    Q_OBJECT
+	Q_OBJECT
 
 public:
-    passwordmanager(QWidget *parent = nullptr);
+	passwordmanager(QWidget* parent = nullptr);
 
-    ~passwordmanager();
+	~passwordmanager();
 
 public:
-    Json::Value root;
-    QString password;
-    char* path;
+	Json::Value root;
+	QString password;
+	char* path;
 
 private:
-    Ui::passwordmanagerClass ui;
+	Ui::passwordmanagerClass ui;
 
 private slots:
-    void add_entry();
+	void add_entry();
+	void handle_item_double_clicked(QTreeWidgetItem* item);
 
 private:
-    void refresh_tree_item();
-    void showContextMenu(const QPoint& pos);
-    void deleteItem(QTreeWidgetItem* item);
-    void editItem(QTreeWidgetItem* item);
-    void add_json(QString &category, QString& url, QString& login_name, QString& password, QString& remark);
+	void edit_entry(QTreeWidgetItem* item, QString& category, QString& url, QString& login_name, QString& password, QString& note);
+	void refresh_tree_item();
+	void show_context_menu(const QPoint& pos);
+	void delete_item(QTreeWidgetItem* item);
+	void edit_item(QTreeWidgetItem* item);
+	void add_json(QString& category, QString& url, QString& login_name, QString& password, QString& remark);
+	void edit_json(QString& old_category, QString& old_url, QString& old_login_name, QString& old_password, QString& old_remark,
+		QString& new_category, QString& new_url, QString& new_login_name, QString& new_password, QString& new_remark);
 public:
-    int init_data(QString& txt);
+	int init_data(QString& txt);
+	void write_to_file();
 };

@@ -105,9 +105,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    QString enc = encrypt_util::encrypt("test", "test");
-    qDebug() << enc;
-    qDebug() << encrypt_util::decrypt(enc, "test");
+    if (w.root["data"].size() == 0) {
+        w.write_to_file();
+    }
     
     return a.exec();
 }
