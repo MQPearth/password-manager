@@ -8,3 +8,6 @@
 *.opensdf
 */build
 */cmake-build*
+*.aps
+/cloud/out/build/x64-Debug
+/.vs
