@@ -8,3 +8,4 @@
 *.opensdf
 */build
 */cmake-build*
+*.aps

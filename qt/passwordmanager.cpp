@@ -1,4 +1,5 @@
 ﻿#include "passwordmanager.h"
+#include "tree_item.h"
 
 #include <QLineEdit>
 #include <QDebug>
@@ -11,7 +12,6 @@
 passwordmanager::passwordmanager(QWidget* parent)
 	: QMainWindow(parent)
 {
-
 	ui.setupUi(this);
 
 	connect(ui.actionAdd, &QAction::triggered, this, &passwordmanager::add_entry);
@@ -24,7 +24,7 @@ passwordmanager::passwordmanager(QWidget* parent)
 	header->resizeSection(0, 80);
 
 	header->setSectionResizeMode(1, QHeaderView::Fixed);
-	header->resizeSection(1, 120);
+	header->resizeSection(1, 160);
 
 	header->setSectionResizeMode(2, QHeaderView::Fixed);
 	header->resizeSection(2, 120);
@@ -33,8 +33,7 @@ passwordmanager::passwordmanager(QWidget* parent)
 	header->resizeSection(3, 140);
 
 	header->setSectionResizeMode(4, QHeaderView::Fixed);
-	header->resizeSection(4, 200);
-
+	header->resizeSection(4, 170);
 }
 
 void passwordmanager::init_data(QString& txt) {
@@ -48,36 +47,23 @@ void passwordmanager::init_data(QString& txt) {
 	this->refresh_tree_item();
 }
 
-bool compareEntries(const Json::Value& l, const Json::Value& r) {
-	auto category_l = l["category"].asString();
-	auto category_r = r["category"].asString();
+bool compare_entries(const Json::Value& l, const Json::Value& r) {
+	auto category_l = GET_CATEGORY(l);
+	auto category_r = GET_CATEGORY(r);
 	if (category_l != category_r)
 		return category_l < category_r;
 
-	auto url_l = l["url"].asString();
-	auto url_r = r["url"].asString();
+	auto url_l = GET_URL(l);
+	auto url_r = GET_URL(r);
 	if (url_l != url_r)
 		return url_l < url_r;
 
-	auto login_name_l = l["login_name"].asString();
-	auto login_name_r = r["login_name"].asString();
+	auto login_name_l = GET_LOGIN_NAME(l);
+	auto login_name_r = GET_LOGIN_NAME(r);
 	if (login_name_l != login_name_r)
 		return login_name_l < login_name_r;
 
-	return l["password"].asString() < r["password"].asString();
-}
-
-
-QTreeWidgetItem* get_parent(QTreeWidgetItem* item, int loop) {
-
-	QTreeWidgetItem* parent = nullptr;
-
-	while (loop <= 0)
-	{
-		parent = item->parent();
-		loop--;
-	}
-	return parent;
+	return GET_PASSWORD(l) < GET_PASSWORD(r);
 }
 
 void passwordmanager::refresh_tree_item() {
@@ -90,111 +76,64 @@ void passwordmanager::refresh_tree_item() {
 		json_vector.push_back(entry);
 	}
 
-	std::sort(json_vector.begin(), json_vector.end(), compareEntries);
-
+	std::sort(json_vector.begin(), json_vector.end(), compare_entries);
 
 	ui.treeWidget->clear();
-	Json::Value* last_json_ele = nullptr;
-	QTreeWidgetItem* last_item_ele = nullptr;
 
-	int deep = 0;
-	for (auto& entry : json_vector) {
-		qDebug() << entry.toStyledString().c_str();
+	// build tree
+	std::map<std::string, QTreeWidgetItem*> category_map;
+	std::map<tree_item_url, QTreeWidgetItem*> category_url_map;
+	std::map<tree_item_login_name, QTreeWidgetItem*> category_url_login_name_map;
 
-		qDebug() << last_json_ele;
-		if (last_json_ele && GET_CATEGORY(entry) == GET_CATEGORY((*last_json_ele))) {
-
-			deep++;
-			if (last_json_ele && GET_URL(entry) == GET_URL((*last_json_ele))) {
-
-				if (last_json_ele && GET_LOGIN_NAME(entry) == GET_LOGIN_NAME((*last_json_ele))) {
-
-					QTreeWidgetItem* password = new QTreeWidgetItem(last_item_ele);
-					password->setText(3, GET_PASSWORD_Q(entry));
-					password->setText(4, GET_NOTE_Q(entry));
-
-					last_item_ele = password;
+	for (const auto& item : json_vector) {
+		qDebug() << item.toStyledString().c_str();
+		auto category_ele = category_map[GET_CATEGORY(item)];
+		if (category_ele) {
+			auto category_url_ele = category_url_map[tree_item_url(GET_CATEGORY(item), GET_URL(item))];
+			if (category_url_ele) {
+				auto category_url_login_name_ele = category_url_login_name_map
+					[tree_item_login_name(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item))];
+				if (category_url_login_name_ele) {
+					QTreeWidgetItem* password = new QTreeWidgetItem(category_url_login_name_ele);
+					password->setText(3, GET_PASSWORD_Q(item));
+					password->setText(4, GET_NOTE_Q(item));
 				}
 				else {
-					QTreeWidgetItem* login_name = new QTreeWidgetItem(last_item_ele);
-					login_name->setText(2, GET_LOGIN_NAME_Q(entry));
-					login_name->setText(3, GET_PASSWORD_Q(entry));
-					login_name->setText(4, GET_NOTE_Q(entry));
+					QTreeWidgetItem* login_name = new QTreeWidgetItem(category_url_ele);
+					login_name->setText(2, GET_LOGIN_NAME_Q(item));
+					login_name->setText(3, GET_PASSWORD_Q(item));
+					login_name->setText(4, GET_NOTE_Q(item));
 
-					last_item_ele = login_name;
+					category_url_login_name_map[tree_item_login_name(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item))] = login_name;
 				}
 			}
 			else {
-				QTreeWidgetItem* url = new QTreeWidgetItem(last_item_ele);
-				url->setText(1, GET_URL_Q(entry));
-				url->setText(2, GET_LOGIN_NAME_Q(entry));
-				url->setText(3, GET_PASSWORD_Q(entry));
-				url->setText(4, GET_NOTE_Q(entry));
+				QTreeWidgetItem* url = new QTreeWidgetItem(category_ele);
+				url->setText(1, GET_URL_Q(item));
+				url->setText(2, GET_LOGIN_NAME_Q(item));
+				url->setText(3, GET_PASSWORD_Q(item));
+				url->setText(4, GET_NOTE_Q(item));
 
-				last_item_ele = url;
+				category_url_map[tree_item_url(GET_CATEGORY(item), GET_URL(item))] = url;
+				category_url_login_name_map[tree_item_login_name(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item))] = url;
 			}
 		}
 		else {
 			QTreeWidgetItem* category = new QTreeWidgetItem(ui.treeWidget);
-			category->setText(0, GET_CATEGORY_Q(entry));
-			category->setText(1, GET_URL_Q(entry));
-			category->setText(2, GET_LOGIN_NAME_Q(entry));
-			category->setText(3, GET_PASSWORD_Q(entry));
-			category->setText(4, GET_NOTE_Q(entry));
+			category->setText(0, GET_CATEGORY_Q(item));
+			category->setText(1, GET_URL_Q(item));
+			category->setText(2, GET_LOGIN_NAME_Q(item));
+			category->setText(3, GET_PASSWORD_Q(item));
+			category->setText(4, GET_NOTE_Q(item));
 
-			last_item_ele = category;
+			category_map[GET_CATEGORY(item)] = category;
+			category_url_map[tree_item_url(GET_CATEGORY(item), GET_URL(item))] = category;
+			category_url_login_name_map[tree_item_login_name(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item))] = category;
 		}
-		last_json_ele = &entry;
 	}
 
-
-	/*
-	for (int i = 0; i < data.size(); i++) {
-		Json::Value ele = data[i];
-
-		QTreeWidgetItem* category = new QTreeWidgetItem(ui.treeWidget);
-		category->setText(0, QString::fromStdString(ele["category"].asString()));
-		Json::Value oneSubEle = ele["sub"];
-		for (int j = 0; j < oneSubEle.size(); j++) {
-			Json::Value twoSubEle = oneSubEle[i];
-
-			QTreeWidgetItem* url = new QTreeWidgetItem(category);
-			url->setText(1, QString::fromStdString(twoSubEle["url"].asString()));
-
-			for (int k = 0; k < twoSubEle.size(); k++) {
-				Json::Value subEle = twoSubEle[i];
-
-				QTreeWidgetItem* item = new QTreeWidgetItem(url);
-				item->setText(2, QString::fromStdString(subEle["login_name"].asString()));
-				item->setText(3, QString::fromStdString(subEle["password"].asString()));
-				item->setText(4, QString::fromStdString(subEle["remark"].asString()));
-
-				url->addChild(item);
-			}
-
-			category->addChild(url);
-		}
-
-
-		ui.treeWidget->addTopLevelItem(category);
-	}
-	*/
 }
 
-/* json format
-  {
-	"verify": true,
-	"data": [
-		{
-			"category": "qq",
-			"url": "https://qq.com",
-			"login_name": "test",
-			"password": "123123",
-			"note": ""
-		}
-	]
-  }
- */
 void passwordmanager::add_json(QString& category, QString& url, QString& login_name, QString& password, QString& note) {
 
 	Json::Value ele;

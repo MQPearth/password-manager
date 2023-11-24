@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
                 },
                 {
                     "category": "qq",
-                    "url": "https://pvp.qq.com",       
+                    "url": "https://www.qq.com",       
                     "login_name": "mahuateng2",       
                     "password": "password",       
                     "note": "",       
