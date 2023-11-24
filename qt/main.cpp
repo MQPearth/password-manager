@@ -78,20 +78,30 @@ int main(int argc, char *argv[])
 
     if (!exist) {
         QMessageBox* msgBox = new QMessageBox(&w);
-        msgBox->setText("<p>请牢记你的密码</p> <p>[" + password + "]</p><p style='color: red'>密码丢失即数据丢失</p>");
+        msgBox->setText("<p>&nbsp;&nbsp;&nbsp;&nbsp;请牢记你的密码&nbsp;&nbsp;&nbsp;&nbsp;</p> <p>&nbsp;&nbsp;&nbsp;&nbsp;[" + 
+            password + "]&nbsp;&nbsp;&nbsp;&nbsp;</p><p style='color: red'>&nbsp;&nbsp;&nbsp;&nbsp;密码丢失即数据丢失&nbsp;&nbsp;&nbsp;&nbsp;</p>");
         msgBox->exec();
+        delete msgBox;
         file_content = R"({"verify": true, "data": []})";
     }
     else {
-        file_content = file_util::read(w.path, password);
+        try {
+            file_content = file_util::read(w.path, password);
+        }
+        catch (...) {
+            QMessageBox* msgBox = new QMessageBox(&w);
+            msgBox->setText("解密文件失败, 请检查密码");
+            msgBox->exec();
+            return -1;
+        }
     }
 
     int code = w.init_data(file_content);
 
     if (code) {
-        QMessageBox msgBox;
-        msgBox.setText("加密文件内容错误");
-        msgBox.exec();
+        QMessageBox* msgBox = new QMessageBox(&w);
+        msgBox->setText("加密文件内容错误: " + file_content);
+        msgBox->exec();
         return -1;
     }
 

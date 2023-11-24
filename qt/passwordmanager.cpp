@@ -10,17 +10,61 @@
 #include <QDialogButtonBox>
 #include <QApplication>
 #include <QScreen>
+#include <QTreeWidget>
 
 #include <jsoncpp/json.h>
 
-passwordmanager::passwordmanager(QWidget* parent)
-	: QMainWindow(parent)
+void passwordmanager::deleteItem(QTreeWidgetItem* item) {
+	QTreeWidgetItem* parent = item->parent();
+	if (parent != nullptr) {
+		delete parent->takeChild(parent->indexOfChild(item));
+	}
+	else {
+		delete ui.treeWidget->takeTopLevelItem(ui.treeWidget->indexOfTopLevelItem(item));
+	}
+}
+
+void passwordmanager::editItem(QTreeWidgetItem* item) {
+	// 在这里实现编辑操作
+	// 可以弹出对话框等
+}
+
+
+void passwordmanager::showContextMenu(const QPoint& pos) {
+	QTreeWidgetItem* item = ui.treeWidget->itemAt(pos);
+
+	if (item != nullptr) {
+		QMenu* menu = new QMenu(this);
+
+		// 添加删除菜单项
+		QAction* deleteAction = new QAction("删除", this);
+		connect(deleteAction, &QAction::triggered, [this, item]() {
+			deleteItem(item);
+			});
+		menu->addAction(deleteAction);
+
+		// 添加修改菜单项
+		QAction* editAction = new QAction("修改", this);
+		connect(editAction, &QAction::triggered, [this, item]() {
+			editItem(item);
+			});
+		menu->addAction(editAction);
+
+		menu->exec(ui.treeWidget->mapToGlobal(pos));
+	}
+}
+
+passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nullptr), password(QString())
 {
 	ui.setupUi(this);
 
 	connect(ui.actionAdd, &QAction::triggered, this, &passwordmanager::add_entry);
 
 	ui.treeWidget->setHeaderLabels(QStringList() << "分类" << "URL" << "登录名" << "密码" << "备注");
+
+	ui.treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(ui.treeWidget, &QTreeWidget::customContextMenuRequested, this, &passwordmanager::showContextMenu);
+
 
 	QHeaderView* header = ui.treeWidget->header();
 

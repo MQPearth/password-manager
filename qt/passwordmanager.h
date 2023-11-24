@@ -30,6 +30,7 @@ class passwordmanager : public QMainWindow
 
 public:
     passwordmanager(QWidget *parent = nullptr);
+
     ~passwordmanager();
 
 public:
@@ -45,6 +46,9 @@ private slots:
 
 private:
     void refresh_tree_item();
+    void showContextMenu(const QPoint& pos);
+    void deleteItem(QTreeWidgetItem* item);
+    void editItem(QTreeWidgetItem* item);
     void add_json(QString &category, QString& url, QString& login_name, QString& password, QString& remark);
 public:
     int init_data(QString& txt);
