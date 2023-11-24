@@ -74,7 +74,17 @@ int main(int argc, char *argv[])
 
     w.password = password;
     
-    QString file_content = file_util::read(w.path, password);
+    QString file_content;
+
+    if (!exist) {
+        QMessageBox* msgBox = new QMessageBox(&w);
+        msgBox->setText("<p>请牢记你的密码</p> <p>[" + password + "]</p><p style='color: red'>密码丢失即数据丢失</p>");
+        msgBox->exec();
+        file_content = R"({"verify": true, "data": []})";
+    }
+    else {
+        file_content = file_util::read(w.path, password);
+    }
 
     int code = w.init_data(file_content);
 
