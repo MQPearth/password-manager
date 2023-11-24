@@ -1,5 +1,6 @@
 ﻿#include "passwordmanager.h"
 #include "tree_item.h"
+#include "file.h"
 
 #include <QLineEdit>
 #include <QDebug>
@@ -7,6 +8,9 @@
 #include <QFormLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QApplication>
+#include <QScreen>
+
 #include <jsoncpp/json.h>
 
 passwordmanager::passwordmanager(QWidget* parent)
@@ -36,15 +40,25 @@ passwordmanager::passwordmanager(QWidget* parent)
 	header->resizeSection(4, 170);
 }
 
-void passwordmanager::init_data(QString& txt) {
+int passwordmanager::init_data(QString& txt) {
 
-	Json::CharReaderBuilder reader;
+	try {
+		Json::CharReaderBuilder reader;
 
-	std::istringstream jsonStream(txt.toStdString());
+		std::istringstream jsonStream(txt.toStdString());
 
-	Json::parseFromStream(reader, jsonStream, &this->root, nullptr);
+		Json::parseFromStream(reader, jsonStream, &this->root, nullptr);
 
-	this->refresh_tree_item();
+		if (!(this->root["verify"].asBool())) {
+			return -1;
+		}
+
+		this->refresh_tree_item();
+		return 0;
+	}
+	catch (...) {
+		return -1;
+	}
 }
 
 bool compare_entries(const Json::Value& l, const Json::Value& r) {
@@ -145,7 +159,8 @@ void passwordmanager::add_json(QString& category, QString& url, QString& login_n
 	ele["note"] = note.toStdString();
 
 	root["data"].append(ele);
-
+	
+	file_util::write(this->path, QString::fromUtf8(this->root.toStyledString().c_str()), this->password);
 	this->refresh_tree_item();
 }
 

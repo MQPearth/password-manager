@@ -34,6 +34,8 @@ public:
 
 public:
     Json::Value root;
+    QString password;
+    char* path;
 
 private:
     Ui::passwordmanagerClass ui;
@@ -45,5 +47,5 @@ private:
     void refresh_tree_item();
     void add_json(QString &category, QString& url, QString& login_name, QString& password, QString& remark);
 public:
-    void init_data(QString& txt);
+    int init_data(QString& txt);
 };

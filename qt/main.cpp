@@ -1,25 +1,13 @@
 ﻿#include "passwordmanager.h"
 #include <QtWidgets/QApplication>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <iostream>
 #include <QDebug>
-#include <filesystem>
-#include "encrypt_util.h"
+#include "encrypt.h"
+#include "file.h"
 
 
-#define BIN_FILE "enc_data.bin";
-#define SERVER_FILE "server.bin";
-
-
-bool check_bin_file(char* path) {
-    namespace fs = std::filesystem;
-
-    fs::path executablePath = fs::canonical(fs::path(path));
-
-    fs::path specifiedFilePath = executablePath.parent_path() / BIN_FILE;
-
-    return fs::exists(specifiedFilePath);
-}
 
 
 QString get_password(bool exist, passwordmanager *w) {
@@ -68,15 +56,15 @@ QString get_password(bool exist, passwordmanager *w) {
 
 int main(int argc, char *argv[])
 {
-
     QApplication a(argc, argv);
     passwordmanager w;
 
     w.setWindowTitle("密码管理器");
     w.show();
 
-    bool exist = check_bin_file(argv[0]);
-    
+    w.path = argv[0];
+
+    bool exist = file_util::check_bin_file(w.path);
 
     QString password = get_password(exist, &w);
     qDebug() << password;
@@ -84,28 +72,18 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    auto txt = QString::fromStdString(R"(
-        {
-            "verify": true,
-            "data": [
-                {
-                    "category": "qq",
-                    "url": "https://www.qq.com",       
-                    "login_name": "mahuateng",       
-                    "password": "*****",       
-                    "note": "麻花",       
-                },
-                {
-                    "category": "qq",
-                    "url": "https://www.qq.com",       
-                    "login_name": "mahuateng2",       
-                    "password": "password",       
-                    "note": "",       
-                }
-            ]
-        }
-    )");
-    w.init_data(txt);
+    w.password = password;
+    
+    QString file_content = file_util::read(w.path, password);
+
+    int code = w.init_data(file_content);
+
+    if (code) {
+        QMessageBox msgBox;
+        msgBox.setText("加密文件内容错误");
+        msgBox.exec();
+        return -1;
+    }
 
     QString enc = encrypt_util::encrypt("test", "test");
     qDebug() << enc;
