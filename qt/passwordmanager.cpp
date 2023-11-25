@@ -12,6 +12,7 @@
 #include <QScreen>
 #include <QTreeWidget>
 #include <QMessageBox>
+#include <QClipboard>
 
 #include <jsoncpp/json.h>
 
@@ -28,8 +29,8 @@ passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nu
 
 	ui.treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(ui.treeWidget, &QTreeWidget::customContextMenuRequested, this, &passwordmanager::show_context_menu);
-	connect(ui.treeWidget, &QTreeWidget::itemDoubleClicked, this, &passwordmanager::handle_item_double_clicked);
 
+	connect(ui.treeWidget, &QTreeWidget::itemDoubleClicked, this, &passwordmanager::handle_item_double_clicked);
 
 	QHeaderView* header = ui.treeWidget->header();
 
@@ -82,11 +83,49 @@ void passwordmanager::delete_item(QTreeWidgetItem* item) {
 }
 
 void passwordmanager::edit_item(QTreeWidgetItem* item) {
-	auto category = item->text(0);
-	auto url = item->text(1);
-	auto login_name = item->text(2);
-	auto password = item->text(3);
-	auto note = item->text(4);
+
+	QString category;
+
+	QTreeWidgetItem* category_item = item;
+
+	do {
+		category = category_item->text(0);
+	} while (category.isEmpty() && (category_item = category_item->parent()));
+
+	QString url;
+
+	QTreeWidgetItem* url_item = item;
+
+	do {
+		url = url_item->text(1);
+	} while (url.isEmpty() && (url_item = url_item->parent()));
+
+	QString login_name;
+
+	QTreeWidgetItem* login_name_item = item;
+
+	do {
+		login_name = login_name_item->text(2);
+	} while (login_name.isEmpty() && (login_name_item = login_name_item->parent()));
+
+	QString password;
+
+	QTreeWidgetItem* password_item = item;
+
+	do {
+		password = password_item->text(3);
+	} while (password.isEmpty() && (password_item = password_item->parent()));
+
+
+	QString note;
+
+	QTreeWidgetItem* note_item = item;
+
+	do {
+		note = note_item->text(4);
+	} while (note.isEmpty() && (note_item = note_item->parent()));
+
+	
 	this->edit_entry(item, category, url, login_name, password, note);
 }
 
@@ -228,6 +267,41 @@ void passwordmanager::handle_item_double_clicked(QTreeWidgetItem* item)
 {
 	qDebug() << "category: " << item->text(0) << "url: " << item->text(1) << "login_name: " << item->text(2)
 		<< "password: " << item->text(3) << "note: " << item->text(4);
+
+	QClipboard* clipboard = QApplication::clipboard();
+
+	std::string url;
+
+	QTreeWidgetItem* url_item = item;
+
+	do {
+		url = url_item->text(1).toStdString();
+	} while (url.empty() && (url_item = url_item->parent()));
+
+	std::string login_name;
+
+	QTreeWidgetItem* login_name_item = item;
+
+	do {
+		login_name = login_name_item->text(2).toStdString();
+	} while (login_name.empty() && (login_name_item = login_name_item->parent()));
+
+	std::string password;
+
+	QTreeWidgetItem* password_item = item;
+
+	do {
+		password = password_item->text(3).toStdString();
+	} while (password.empty() && (password_item = password_item->parent()));
+
+	std::stringstream ss;
+	ss << "网址: " << url << "\n" << "登录名: " << login_name << "\n" << "密码: " << password;
+
+	clipboard->setText(QString::fromStdString(ss.str()));
+
+	QMessageBox* msgBox = new QMessageBox(this);
+	msgBox->setText("已复制到剪切板");
+	msgBox->exec();
 }
 
 void passwordmanager::add_json(QString& category, QString& url, QString& login_name, QString& password, QString& note) {
@@ -391,11 +465,7 @@ void passwordmanager::edit_entry(QTreeWidgetItem* item, QString& category, QStri
 
 		this->edit_json(category, url, login_name, password, note, new_category, new_url, new_username, new_password, new_note);
 
-		item->setText(0, new_category);
-		item->setText(1, new_url);
-		item->setText(2, new_username);
-		item->setText(3, new_password);
-		item->setText(4, new_note);
+		this->refresh_tree_item();
 		break;
 	}
 
@@ -407,7 +477,7 @@ void passwordmanager::edit_json(QString& old_category, QString& old_url, QString
 	auto data = this->root["data"];
 	for (Json::Value::ArrayIndex i = 0; i < data.size(); ++i) {
 
-		Json::Value& item = data[i];
+		Json::Value item = data[i];
 
 		qDebug() << item.toStyledString().c_str();
 
@@ -415,11 +485,14 @@ void passwordmanager::edit_json(QString& old_category, QString& old_url, QString
 			&& GET_LOGIN_NAME(item) == old_login_name.toStdString() && GET_PASSWORD(item) == old_password.toStdString()
 			&& GET_NOTE(item) == old_remark.toStdString()) {
 
-			item[CATEGORY] = new_category.toStdString();
-			item[URL] = new_category.toStdString();
-			item[LOGIN_NAME] = new_category.toStdString();
-			item[PASSWORD] = new_category.toStdString();
-			item[NOTE] = new_category.toStdString();
+			Json::Value new_item;
+			new_item[CATEGORY] = new_category.toStdString();
+			new_item[URL] = new_url.toStdString();
+			new_item[LOGIN_NAME] = new_login_name.toStdString();
+			new_item[PASSWORD] = new_password.toStdString();
+			new_item[NOTE] = new_remark.toStdString();
+
+			data[i] = new_item;
 
 			this->root["data"] = data;
 
