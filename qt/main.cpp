@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <iostream>
 #include <QDebug>
+#include <QStyleFactory>
 #include "encrypt.h"
 #include "file.h"
 
@@ -56,6 +57,8 @@ QString get_password(bool exist, passwordmanager *w) {
 
 int main(int argc, char *argv[])
 {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
+
     QApplication a(argc, argv);
     passwordmanager w;
 
