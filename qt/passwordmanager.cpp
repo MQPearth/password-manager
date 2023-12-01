@@ -354,6 +354,12 @@ void passwordmanager::add_json(QString& category, QString& url, QString& login_n
 }
 
 void passwordmanager::push_entry() {
+
+	if (!file_util::check_server_file(this->path)) {
+		message_util::show(this, "请检查云端配置");
+		return;
+	}
+
 	auto enc_data = encrypt_util::encrypt(QString::fromUtf8(this->root.toStyledString().c_str()), this->password);
 	auto server_config_txt = file_util::read_server(this->path, this->password);
 
