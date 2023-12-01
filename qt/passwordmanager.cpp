@@ -60,10 +60,38 @@ void passwordmanager::delete_item(QTreeWidgetItem* item) {
 		return;
 	}
 
-	auto category = item->text(0);
-	auto url = item->text(1);
-	auto login_name = item->text(2);
-	auto password = item->text(3);
+	std::string category;
+
+	QTreeWidgetItem* category_item = item;
+
+	do {
+		category = category_item->text(0).toStdString();
+	} while (category.empty() && (category_item = category_item->parent()));
+
+	std::string url;
+
+	QTreeWidgetItem* url_item = item;
+
+	do {
+		url = url_item->text(1).toStdString();
+	} while (url.empty() && (url_item = url_item->parent()));
+
+	std::string login_name;
+
+	QTreeWidgetItem* login_name_item = item;
+
+	do {
+		login_name = login_name_item->text(2).toStdString();
+	} while (login_name.empty() && (login_name_item = login_name_item->parent()));
+
+	std::string password;
+
+	QTreeWidgetItem* password_item = item;
+
+	do {
+		password = password_item->text(3).toStdString();
+	} while (password.empty() && (password_item = password_item->parent()));
+
 	auto note = item->text(4);
 
 	QTreeWidgetItem* parent = item->parent();
@@ -81,9 +109,8 @@ void passwordmanager::delete_item(QTreeWidgetItem* item) {
 
 		qDebug() << item.toStyledString().c_str();
 
-		if (GET_CATEGORY(item) == category.toStdString() && GET_URL(item) == url.toStdString()
-			&& GET_LOGIN_NAME(item) == login_name.toStdString() && GET_PASSWORD(item) == password.toStdString()
-			&& GET_NOTE(item) == note.toStdString()) {
+		if (GET_CATEGORY(item) == category && GET_URL(item) == url && GET_LOGIN_NAME(item) == login_name
+			&& GET_PASSWORD(item) == password && GET_NOTE(item) == note.toStdString()) {
 			data.removeIndex(i, &item);
 			this->root["data"] = data;
 			this->write_to_file();
@@ -341,7 +368,8 @@ void passwordmanager::push_entry() {
 		message_util::show(this, "备份完成");
 	}
 	else {
-		auto msg = QString::fromStdString("备份失败: " + resp["msg"].asString());
+		auto resp_msg = resp["msg"].asString();
+		auto msg = QString::fromStdString("备份失败: " + resp_msg.empty() ? "网络错误": resp_msg);
 		message_util::show(this, msg);
 	}
 }
@@ -489,12 +517,10 @@ void passwordmanager::add_entry()
 void passwordmanager::edit_entry(QTreeWidgetItem* item, QString& category, QString& url, QString& login_name, 
 	QString& password, QString& note)
 {
-	// 创建对话框
 	QDialog dialog(this);
-	dialog.setWindowTitle("新增密码");
+	dialog.setWindowTitle("修改密码");
 	dialog.setMinimumWidth(400);
 
-	// 创建表单布局
 	QFormLayout formLayout(&dialog);
 
 	QLineEdit* categoryEdit = new QLineEdit(&dialog);

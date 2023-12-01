@@ -26,6 +26,25 @@ private:
 public:
 	tree_item_login_name(std::string p1, std::string p2, std::string p3);
 
+	std::string get_login_name() const;
+
 	bool operator<(const tree_item_login_name& other) const;
+};
+
+
+class tree_item_all : public tree_item_login_name
+{
+private:
+	std::string password;
+	std::string note;
+
+public:
+	tree_item_all(std::string p1, std::string p2, std::string p3, std::string p4, std::string p5);
+
+	std::string get_password() const;
+
+	std::string get_note() const;
+
+	bool operator<(const tree_item_all& other) const;
 };
 

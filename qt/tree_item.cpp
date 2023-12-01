@@ -36,3 +36,44 @@ bool tree_item_login_name::operator<(const tree_item_login_name& other) const {
 	return login_name < other.login_name;
 }
 
+std::string tree_item_login_name::get_login_name() const
+{
+	return login_name;
+}
+
+
+tree_item_all::tree_item_all(std::string p1, std::string p2, std::string p3, std::string p4, std::string p5) 
+	: tree_item_login_name(p1, p2, p3), password(p4), note(p5) {}
+
+
+
+std::string tree_item_all::get_password() const
+{
+	return password;
+}
+
+
+std::string tree_item_all::get_note() const
+{
+	return note;
+}
+
+bool tree_item_all::operator<(const tree_item_all& other) const {
+	if (this->get_category() != other.get_category()) {
+		return this->get_category() < other.get_category();
+	}
+
+	if (this->get_url() != other.get_url()) {
+		return this->get_url() < other.get_url();
+	}
+
+	if (this->get_login_name() != other.get_login_name()) {
+		return this->get_login_name() < other.get_login_name();
+	}
+
+	if (this->get_password() != other.get_password()) {
+		return this->get_password() < other.get_password();
+	}
+
+	return note < other.note;
+}

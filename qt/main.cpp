@@ -8,10 +8,12 @@
 #include "encrypt.h"
 #include "file.h"
 #include "json.h"
+#include "tree_item.h"
 #include "cloud.h"
 #include "message.h"
 #include <QPushbutton>
 #include <QThread>
+#include <set>
 
 
 QString get_password(bool exist, passwordmanager* w) {
@@ -56,6 +58,44 @@ QString get_password(bool exist, passwordmanager* w) {
 	}
 
 	return text;
+}
+
+
+void distinct(Json::Value& local, Json::Value& cloud, Json::Value* value) {
+	qDebug() << local.toStyledString().c_str();
+	qDebug() << cloud.toStyledString().c_str();
+
+	if (!local["verify"].asBool()) {
+		throw std::runtime_error("本地数据校验失败");
+	}
+
+	if (!cloud["verify"].asBool()) {
+		throw std::runtime_error("云端数据校验失败");
+	}
+
+	std::set<tree_item_all> item_set;
+
+	for (const Json::Value& item : local["data"]) {
+		item_set.insert(tree_item_all(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item),
+			GET_PASSWORD(item), GET_NOTE(item)));
+	}
+
+	for (const Json::Value& item : cloud["data"]) {
+		item_set.insert(tree_item_all(GET_CATEGORY(item), GET_URL(item), GET_LOGIN_NAME(item),
+			GET_PASSWORD(item), GET_NOTE(item)));
+	}
+	
+	Json::Value arr;
+	for (const tree_item_all& item : item_set) {
+		Json::Value json_item;
+		json_item["category"] = item.get_category();
+		json_item["url"] = item.get_url();
+		json_item["login_name"] = item.get_login_name();
+		json_item["password"] = item.get_password();
+		json_item["note"] = item.get_note();
+		arr.append(json_item);
+	}
+	(*value)["data"] = arr;
 }
 
 
@@ -108,8 +148,15 @@ int main(int argc, char* argv[])
 	
 			auto cloud_config = cloud_util::get(&w, cloud_host, cloud_login_name, cloud_password);
 			if (cloud_config["code"].asString() == "0") {
-				cloud_file_content = encrypt_util::decrypt(QString::fromStdString(cloud_config["data"]["enc_data"].asString()), w.password);
-				cloud_update_time = cloud_config["data"]["update_time"].asInt64();
+
+				auto cloud_enc_data = cloud_config["data"]["enc_data"].asString();
+				if (cloud_enc_data.empty()) {
+					server_exist = false;
+				}
+				else {
+					cloud_file_content = encrypt_util::decrypt(QString::fromStdString(cloud_enc_data), w.password);
+					cloud_update_time = cloud_config["data"]["update_time"].asInt64();
+				}
 			}
 			else {
 				auto err_msg = cloud_config["msg"].asString();
@@ -136,7 +183,7 @@ int main(int argc, char* argv[])
 
 				auto tips = QString(cloud_update_time > local_update_time ? "云端" : "本地");
 
-				msgBox.setText(tips + "数据较新<br / > 请选择冲突解决方式");
+				msgBox.setText(tips + "数据较新<br />请选择冲突解决方式<br />选择后将永久更改本地文件");
 
 				QPushButton* merge_button = msgBox.addButton("云端和本地合并", QMessageBox::ActionRole);
 				QPushButton* local_button = msgBox.addButton("以本地为准", QMessageBox::ActionRole);
@@ -149,11 +196,33 @@ int main(int argc, char* argv[])
 					auto local_data = json_util::parse(local_file_content);
 					auto cloud_data = json_util::parse(cloud_file_content);
 
-					local_data["data"].append(cloud_data["data"]);
-					data = local_data;
+					distinct(local_data, cloud_data , &data);
+					data["verify"] = true;
+
+					auto data_str = QString::fromStdString(data.toStyledString());
+					file_util::write(w.path, data_str, w.password);
+
+					QMessageBox::StandardButton reply;
+					reply = QMessageBox::question(&w, "提示", "是否将本次合并的结果备份到云端?",
+						QMessageBox::Yes | QMessageBox::No);
+					if (reply == QMessageBox::Yes) {
+						auto wait_push_data = encrypt_util::encrypt(data_str, w.password);
+						cloud_util::update(&w, cloud_host, cloud_login_name, cloud_password, wait_push_data);
+						message_util::show(&w, "成功");
+					}
+
 				}
 				else if (msgBox.clickedButton() == local_button) {
 					data = json_util::parse(local_file_content);
+					QMessageBox::StandardButton reply;
+					reply = QMessageBox::question(&w, "提示", "是否将本地数据备份到云端?",
+						QMessageBox::Yes | QMessageBox::No);
+					if (reply == QMessageBox::Yes) {
+						auto data_str = QString::fromStdString(data.toStyledString());
+						auto wait_push_data = encrypt_util::encrypt(data_str, w.password);
+						cloud_util::update(&w, cloud_host, cloud_login_name, cloud_password, wait_push_data);
+						message_util::show(&w, "成功");
+					}
 				}
 				else if (msgBox.clickedButton() == cloud_button) {
 					data = json_util::parse(cloud_file_content);
@@ -169,6 +238,7 @@ int main(int argc, char* argv[])
 		}
 		else if (server_exist) {
 			data = json_util::parse(cloud_file_content);
+			file_util::write(w.path, cloud_file_content, w.password);
 		}
 		else {
 			message_util::show(&w, "<p>&nbsp;&nbsp;&nbsp;&nbsp;请牢记你的密码&nbsp;&nbsp;&nbsp;&nbsp;</p> <p>&nbsp;&nbsp;&nbsp;&nbsp;[" +
@@ -176,6 +246,7 @@ int main(int argc, char* argv[])
 			local_file_content = R"({"verify": true, "data": []})";
 			data = json_util::parse(local_file_content);
 		}
+		qDebug() << data.toStyledString().c_str();
 
 		int code = w.init_data(data);
 

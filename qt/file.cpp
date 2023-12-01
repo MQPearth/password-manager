@@ -1,4 +1,4 @@
-#include "file.h"
+﻿#include "file.h"
 #include "encrypt.h"
 #include <filesystem>
 #include <QTextStream>
@@ -64,18 +64,23 @@ void file_util::write_server(const char* path, const QString& txt, QString& pwd)
 
 QString file_util::read(const char* path, QString& pwd)
 {
-    QFile file(get_bin_file_path(path));
-    QString content;
+    try {
+        QFile file(get_bin_file_path(path));
+        QString content;
 
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        QTextStream in(&file);
-        in.setCodec("UTF-8");
-        content = in.readAll();
-        file.close();
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QTextStream in(&file);
+            in.setCodec("UTF-8");
+            content = in.readAll();
+            file.close();
+        }
+
+        return encrypt_util::decrypt(content, pwd);
     }
-
-    return encrypt_util::decrypt(content, pwd);
+    catch (...) {
+        throw std::exception("本地数据解密失败, 请检查密码");
+    }
 }
 
 /*
@@ -87,18 +92,23 @@ QString file_util::read(const char* path, QString& pwd)
 */
 QString file_util::read_server(const char* path, QString& pwd)
 {
-    QFile file(get_server_file_path(path));
-    QString content;
+    try {
+        QFile file(get_server_file_path(path));
+        QString content;
 
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        QTextStream in(&file);
-        in.setCodec("UTF-8");
-        content = in.readAll();
-        file.close();
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QTextStream in(&file);
+            in.setCodec("UTF-8");
+            content = in.readAll();
+            file.close();
+        }
+
+        return encrypt_util::decrypt(content, pwd);
     }
-
-    return encrypt_util::decrypt(content, pwd);
+    catch (...) {
+        throw std::exception("云端配置解密失败, 请检查密码");
+    }
 }
 
 long long file_util::get_bin_file_last_modify_time(const char* path) {
