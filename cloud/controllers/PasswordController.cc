@@ -50,7 +50,8 @@ void PasswordController::get(const HttpRequestPtr &req, std::function<void(const
         const auto &enc_data = enc_data_row.getEncData();
         Json::Value data;
         data["enc_data"] = *enc_data;
-        data["update_time"] = enc_data_row.getUpdateTime()->secondsSinceEpoch();
+        data["update_time"] = static_cast<Json::Int64>(enc_data_row.getUpdateTime()->secondsSinceEpoch());
+
         ret["data"] = data;
         callback(HttpResponse::newHttpJsonResponse(ret));
     } catch (orm::UnexpectedRows &e) {
