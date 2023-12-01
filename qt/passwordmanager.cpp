@@ -1,6 +1,9 @@
 ﻿#include "passwordmanager.h"
 #include "tree_item.h"
 #include "file.h"
+#include "json.h"
+#include "cloud.h"
+#include "encrypt.h"
 
 #include <QLineEdit>
 #include <QDebug>
@@ -15,7 +18,8 @@
 #include <QClipboard>
 
 #include <jsoncpp/json.h>
-
+#include "cloud.h"
+#include "message.h"
 
 
 
@@ -24,6 +28,10 @@ passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nu
 	ui.setupUi(this);
 
 	connect(ui.actionAdd, &QAction::triggered, this, &passwordmanager::add_entry);
+
+	connect(ui.actionSync, &QAction::triggered, this, &passwordmanager::sync_entry);
+
+	connect(ui.actionPush, &QAction::triggered, this, &passwordmanager::push_entry);
 
 	ui.treeWidget->setHeaderLabels(QStringList() << "分类" << "URL" << "登录名" << "密码" << "备注");
 
@@ -39,6 +47,8 @@ passwordmanager::passwordmanager(QWidget* parent) : QMainWindow(parent), path(nu
 	header->resizeSection(2, 120);
 	header->resizeSection(3, 140);
 	header->resizeSection(4, 170);
+	QNetworkAccessManager* manager = new QNetworkAccessManager(this);
+	this->manager = manager;
 }
 
 void passwordmanager::delete_item(QTreeWidgetItem* item) {
@@ -154,14 +164,9 @@ void passwordmanager::show_context_menu(const QPoint& pos) {
 
 
 
-int passwordmanager::init_data(QString& txt) {
-
+int passwordmanager::init_data(Json::Value& data) {
 	try {
-		Json::CharReaderBuilder reader;
-
-		std::istringstream jsonStream(txt.toStdString());
-
-		Json::parseFromStream(reader, jsonStream, &this->root, nullptr);
+		this->root = data;
 
 		if (!(this->root["verify"].asBool())) {
 			return -1;
@@ -321,7 +326,95 @@ void passwordmanager::add_json(QString& category, QString& url, QString& login_n
 	this->refresh_tree_item();
 }
 
+void passwordmanager::push_entry() {
+	auto enc_data = encrypt_util::encrypt(QString::fromUtf8(this->root.toStyledString().c_str()), this->password);
+	auto server_config_txt = file_util::read_server(this->path, this->password);
 
+	auto server_config = json_util::parse(server_config_txt);
+
+	auto cloud_host = QString::fromStdString(server_config["host"].asString());
+	auto cloud_login_name = QString::fromStdString(server_config["login_name"].asString());
+	auto cloud_password = QString::fromStdString(server_config["password"].asString());
+
+	auto resp = cloud_util::update(this, cloud_host, cloud_login_name, cloud_password, enc_data);
+	if (resp["code"] == "0") {
+		message_util::show(this, "备份完成");
+	}
+	else {
+		auto msg = QString::fromStdString("备份失败: " + resp["msg"].asString());
+		message_util::show(this, msg);
+	}
+}
+
+void passwordmanager::sync_entry() {
+	bool exist = file_util::check_server_file(this->path);
+
+	QDialog dialog(this);
+	dialog.setWindowTitle("云同步管理");
+	dialog.setMinimumWidth(400);
+
+	QFormLayout formLayout(&dialog);
+
+	QLineEdit* hostEdit = new QLineEdit(&dialog);
+	hostEdit->setPlaceholderText("请填写Cloud服务Host");
+
+	QLineEdit* loginNameEdit = new QLineEdit(&dialog);
+	loginNameEdit->setPlaceholderText("请填写用户名");
+
+	QLineEdit* passwordEdit = new QLineEdit(&dialog);
+	passwordEdit->setPlaceholderText("请填写密码");
+
+
+	formLayout.addRow("<p>Host: <span style='color: red'>*</span></p>", hostEdit);
+	formLayout.addRow("<p>用户名:  <span style='color: red'>*</span></p>", loginNameEdit);
+	formLayout.addRow("<p>密码: <span style='color: red'>*</span></p>", passwordEdit);
+
+	if (exist) {
+		QString server_config_txt = file_util::read_server(this->path, this->password);
+		Json::Value server_config = json_util::parse(server_config_txt);
+
+		hostEdit->setText(QString::fromStdString(server_config["host"].asString()));
+		loginNameEdit->setText(QString::fromStdString(server_config["login_name"].asString()));
+		passwordEdit->setText(QString::fromStdString(server_config["password"].asString()));
+	}
+
+
+	QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+		Qt::Horizontal, &dialog);
+	formLayout.addRow(&buttonBox);
+
+	connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+	while (1 && dialog.exec() == QDialog::Accepted) {
+
+		QString host = hostEdit->text();
+		QString login_name = loginNameEdit->text();
+		QString password = passwordEdit->text();
+		
+		if (host.isEmpty()) {
+			hostEdit->setPlaceholderText("host是必填项");
+			continue;
+		}
+		if (login_name.isEmpty()) {
+			loginNameEdit->setPlaceholderText("用户名是必填项");
+			continue;
+		}
+		if (password.isEmpty()) {
+			passwordEdit->setPlaceholderText("密码是必填项");
+			continue;
+		}
+
+		Json::Value new_config;
+		new_config["host"] = host.toStdString();
+		new_config["login_name"] = login_name.toStdString();
+		new_config["password"] = password.toStdString();
+
+		file_util::write_server(this->path, QString::fromStdString(new_config.toStyledString()), this->password);
+
+		break;
+	}
+}
 
 void passwordmanager::add_entry()
 {
@@ -502,6 +595,7 @@ void passwordmanager::edit_json(QString& old_category, QString& old_url, QString
 	}
 
 }
+
 
 void passwordmanager::write_to_file() {
 	file_util::write(this->path, QString::fromUtf8(this->root.toStyledString().c_str()), this->password);

@@ -2,6 +2,8 @@
 
 #include "ui_passwordmanager.h"
 #include <jsoncpp/json.h>
+#include <QNetworkAccessManager>
+
 
 
 #define CATEGORY "category"
@@ -37,12 +39,14 @@ public:
 	Json::Value root;
 	QString password;
 	char* path;
-
+	QNetworkAccessManager* manager;
 private:
 	Ui::passwordmanagerClass ui;
 
 private slots:
 	void add_entry();
+	void sync_entry();
+	void push_entry();
 	void handle_item_double_clicked(QTreeWidgetItem* item);
 
 private:
@@ -55,6 +59,6 @@ private:
 	void edit_json(QString& old_category, QString& old_url, QString& old_login_name, QString& old_password, QString& old_remark,
 		QString& new_category, QString& new_url, QString& new_login_name, QString& new_password, QString& new_remark);
 public:
-	int init_data(QString& txt);
+	int init_data(Json::Value& data);
 	void write_to_file();
 };
