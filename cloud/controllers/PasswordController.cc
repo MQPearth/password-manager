@@ -33,6 +33,11 @@ void PasswordController::get(const HttpRequestPtr &req, std::function<void(const
         auto row = account_mapper.findOne(orm::Criteria(Account::Cols::_login_name,
                                                         orm::CompareOperator::EQ, login_name));
 
+        if (*(row.getPassword()) != password.asString()) {
+            callback(Result::error("账户名或密码错误"));
+            return;
+        }
+
         row.setLatestLoginDate(trantor::Date::now());
         account_mapper.update(row);
 
@@ -45,7 +50,8 @@ void PasswordController::get(const HttpRequestPtr &req, std::function<void(const
         const auto &enc_data = enc_data_row.getEncData();
         Json::Value data;
         data["enc_data"] = *enc_data;
-        data["update_time"] = enc_data_row.getUpdateTime()->toCustomedFormattedStringLocal("%Y-%m-%d %H:%M:%S");
+        data["update_time"] = static_cast<Json::Int64>(enc_data_row.getUpdateTime()->secondsSinceEpoch());
+
         ret["data"] = data;
         callback(HttpResponse::newHttpJsonResponse(ret));
     } catch (orm::UnexpectedRows &e) {
@@ -89,6 +95,11 @@ void PasswordController::update(const HttpRequestPtr &req, std::function<void(co
 
         auto row = account_mapper.findOne(orm::Criteria(Account::Cols::_login_name,
                                                         orm::CompareOperator::EQ, login_name));
+
+        if (*(row.getPassword()) != password.asString()) {
+            callback(Result::error("账户名或密码错误"));
+            return;
+        }
 
         row.setLatestLoginDate(trantor::Date::now());
         account_mapper.update(row);
